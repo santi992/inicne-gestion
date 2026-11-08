@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block titulo %}Ingresar{% endblock %}
+
+{% block contenido %}
+<div class="row justify-content-center">
+  <div class="col-md-5 col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-3">Ingresar</h1>
+
+        {# form.errors tiene contenido cuando el usuario o la clave no coinciden #}
+        {% if form.errors %}
+        <div class="alert alert-danger">Usuario o contraseña incorrectos.</div>
+        {% endif %}
+
+        <form method="post">
+          {# El csrf_token protege contra formularios falsos enviados desde otros sitios #}
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label" for="id_username">Usuario</label>
+            <input type="text" name="username" id="id_username" class="form-control" autofocus required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_password">Contraseña</label>
+            <input type="password" name="password" id="id_password" class="form-control" required>
+          </div>
+          {# "next" recuerda a qué página quería ir antes de que le pidiera ingresar #}
+          <input type="hidden" name="next" value="{{ next }}">
+          <button type="submit" class="btn btn-primary w-100">Entrar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

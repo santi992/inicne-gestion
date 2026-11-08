@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block titulo %}Equipamiento{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Equipamiento</h1>
+  <div>
+    <a class="btn btn-outline-primary" href="{% url 'equipamiento:retirar' %}">Retirar equipo</a>
+    {# solo el administrador ve el botón de crear #}
+    {% if es_admin %}
+    <a class="btn btn-primary" href="{% url 'equipamiento:crear' %}">Nuevo equipo</a>
+    {% endif %}
+  </div>
+</div>
+
+{# formulario GET para que los filtros queden escritos en la dirección #}
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-5">
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por código o nombre">
+  </div>
+  <div class="col-md-3">
+    <select name="estado" class="form-select">
+      <option value="">Todos los estados</option>
+      {% for valor, etiqueta in estados %}
+      <option value="{{ valor }}" {% if valor == estado_sel %}selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select name="categoria" class="form-select">
+      <option value="">Todas las categorías</option>
+      {% for c in categorias %}
+      <option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == categoria_sel %}selected{% endif %}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-1 d-grid">
+    <button class="btn btn-secondary" type="submit">Filtrar</button>
+  </div>
+</form>
+
+<div class="table-responsive bg-white border rounded">
+  <table class="table table-hover align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Código</th><th>Nombre</th><th>Categoría</th><th>Ubicación</th>
+        <th>Estado</th><th>Última revisión</th><th>Responsable</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for equipo in object_list %}
+      <tr>
+        <td>{{ equipo.codigo }}</td>
+        <td>{{ equipo.nombre }}</td>
+        <td>{{ equipo.categoria }}</td>
+        <td>{{ equipo.ubicacion }}</td>
+        <td>
+          {# colores de Bootstrap según el estado del equipo #}
+          <span class="badge {% if equipo.estado == 'O' %}text-bg-success{% elif equipo.estado == 'RM' %}text-bg-warning{% elif equipo.estado == 'FS' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">
+            {{ equipo.get_estado_display }}
+          </span>
+        </td>
+        <td>{{ equipo.fecha_ultima_revision|date:"d/m/Y"|default:"—" }}</td>
+        <td>{{ equipo.responsable|default:"—" }}</td>
+        <td class="text-end">
+          {% if es_admin %}
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'equipamiento:editar' equipo.pk %}">Editar</a>
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'equipamiento:eliminar' equipo.pk %}">Eliminar</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" class="text-center text-muted py-4">No hay equipos que coincidan con la búsqueda.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# conserva los filtros gracias a los de la vista #}
+{% if is_paginated %}
+<nav class="mt-3">
+  <ul class="pagination">
+    {% if page_obj.has_previous %}
+    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ filtros }}">Anterior</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}
+    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ filtros }}">Siguiente</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

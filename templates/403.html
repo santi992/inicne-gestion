@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block titulo %}Acceso denegado{% endblock %}
+
+{% block contenido %}
+{# Django muestra esta plantilla cuando se lanza un error 403 (permiso denegado) #}
+<div class="alert alert-danger">
+  <h4 class="alert-heading">Acceso denegado</h4>
+  <p class="mb-0">No tenés permiso para realizar esta acción. Si creés que es un error, hablá con el administrador.</p>
+</div>
+<a class="btn btn-secondary" href="{% url 'inicio' %}">Volver al inicio</a>
+{% endblock %}

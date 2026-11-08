@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Inicio{% endblock %}
+
+{% block contenido %}
+{# página pública que ve un visitante sin sesión #}
+<div class="p-5 mb-4 bg-white rounded-3 border">
+  <h1 class="display-6">Sistema de gestión del INICNE</h1>
+  <p class="lead">
+    Instituto de Ictiología del Nordeste, Universidad Nacional del Nordeste.
+    Organiza las tareas del personal, el equipamiento y el control de producción.
+  </p>
+  <a class="btn btn-primary btn-lg" href="{% url 'login' %}">Ingresar</a>
+</div>
+{% endblock %}

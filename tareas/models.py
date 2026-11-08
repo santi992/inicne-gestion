@@ -75,12 +75,22 @@ class TareaQuerySet(models.QuerySet):
         # range == rango desde hoy hasta hoy + DIAS_ALERTA
         return self.pendientes().filter(fecha_limite__range=(hoy, limite))
 
+    def visibles_en_tablero(self):
+        """
+        Las tareas que el tablero debe mostrar:
+        todas las que siguen abiertas, más las que se completaron en el día
+        """
+        hoy = timezone.localdate()
+        # Q para combinar condiciones con | y &
+        abiertas = Q(estado__in=[Tarea.Estado.PENDIENTE, Tarea.Estado.EN_CURSO])
+        completadas_hoy = Q(estado=Tarea.Estado.COMPLETADA, fecha_completada=hoy)
+        return self.filter(abiertas | completadas_hoy)
+
     def de_hoy(self):
         return self.filter(fecha_limite=timezone.localdate())
 
     def de_la_semana(self):
         hoy = timezone.localdate()
-        # weekday() da 0 para el lunes. Restándolo llego al lunes de esta semana
         lunes = hoy - timedelta(days=hoy.weekday())
         domingo = lunes + timedelta(days=6)
         return self.filter(fecha_limite__range=(lunes, domingo))

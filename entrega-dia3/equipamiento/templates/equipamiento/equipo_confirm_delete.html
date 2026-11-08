@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Eliminar equipo{% endblock %}
+
+{% block contenido %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card border-danger"><div class="card-body">
+      <h1 class="h4">Eliminar equipo</h1>
+      {# En un borrado siempre pido confirmación: es una acción que no se puede deshacer #}
+      <p>¿Seguro que querés eliminar <strong>{{ object }}</strong>?</p>
+      <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-danger" type="submit">Sí, eliminar</button>
+        <a class="btn btn-link" href="{% url 'equipamiento:lista' %}">Cancelar</a>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
