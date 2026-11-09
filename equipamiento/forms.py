@@ -1,59 +1,36 @@
 from django import forms
 
+from personal.formularios import BootstrapMixin
 from personal.models import Persona
 
 from .models import Equipo, Movimiento
 
 
-class BootstrapMixin:
-    """
-    agrega a cada campo del formulario la correspondiente clase CSS para Bootstrap
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for campo in self.fields.values():
-            widget = campo.widget
-            if isinstance(widget, forms.CheckboxInput):
-                clase = "form-check-input"
-            elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
-                clase = "form-select"
-            else:
-                clase = "form-control"
-            widget.attrs["class"] = (
-                widget.attrs.get("class", "") + " " + clase
-            ).strip()
-
 
 def equipos_disponibles():
     """
-    devuelve los equipos disponibles que se pueden retirar
+    Equipos que se pueden retirar ahora: los que no están fuera de servicio
+    ni dados de baja, y que no tienen un retiro sin devolver.
     """
-    # subconsulta de los equipos sin fecha de devolución
-    retirados = Movimiento.objects.filter(fecha_devolucion__isnull=True).values(
-        "equipo_id"
+    # Subconsulta: los equipos con algún movimiento sin fecha de devolución
+    retirados = Movimiento.objects.filter(
+        fecha_devolucion__isnull=True
+    ).values("equipo_id")
+    return (
+        Equipo.objects
+        .exclude(estado__in=[Equipo.Estado.FUERA_DE_SERVICIO, Equipo.Estado.BAJA])
+        .exclude(pk__in=retirados)
     )
-    return Equipo.objects.exclude(
-        estado__in=[Equipo.Estado.FUERA_DE_SERVICIO, Equipo.Estado.BAJA]
-    ).exclude(pk__in=retirados)
 
 
 class EquipoForm(BootstrapMixin, forms.ModelForm):
-    """
-    formulario para crear y editar equipos
-    """
+    """Formulario para crear y editar equipos (solo lo usa el administrador)."""
 
     class Meta:
         model = Equipo
         fields = [
-            "codigo",
-            "nombre",
-            "categoria",
-            "ubicacion",
-            "estado",
-            "fecha_ultima_revision",
-            "responsable",
-            "observaciones",
+            "codigo", "nombre", "categoria", "ubicacion", "estado",
+            "fecha_ultima_revision", "responsable", "observaciones",
         ]
         widgets = {
             # type="date" hace que el navegador muestre un calendario
@@ -65,15 +42,17 @@ class EquipoForm(BootstrapMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["responsable"].queryset = Persona.objects.filter(
-            activo=True
-        ).select_related("usuario")
+        # Solo ofrezco como responsables a personas activas
+        self.fields["responsable"].queryset = (
+            Persona.objects.filter(activo=True).select_related("usuario")
+        )
 
 
 class RetiroForm(BootstrapMixin, forms.ModelForm):
     """
-    formulario para retirar un equipo
-    usuario y fecha se autocompletan (usuario logueado y hora actual)
+    Formulario para retirar un equipo. No pide quién retira ni la fecha:
+    esos datos los completa la vista (usuario logueado y hora actual), así
+    nadie puede registrar un retiro a nombre de otra persona.
     """
 
     class Meta:
@@ -83,15 +62,14 @@ class RetiroForm(BootstrapMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # limita las opciones del desplegable
-        # si alguien manipula el formulario y manda otro equipo, se rechaza
+        # Limito las opciones del desplegable. También sirve de seguridad:
+        # si alguien manipula el formulario y manda otro equipo, Django lo
+        # rechaza porque no figura entre las opciones válidas.
         self.fields["equipo"].queryset = equipos_disponibles()
 
 
 class DevolucionForm(BootstrapMixin, forms.ModelForm):
-    """
-    formulario para devolver un equipo
-    """
+    """Formulario para devolver un equipo: pide el estado en que vuelve."""
 
     class Meta:
         model = Movimiento
@@ -100,6 +78,7 @@ class DevolucionForm(BootstrapMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # blank=True para retiros
-        # .required para devoluciones
+        # En el modelo el campo es opcional (blank=True) porque un retiro
+        # recién hecho todavía no tiene estado de devolución. Pero al
+        # devolver, es obligatorio.
         self.fields["estado_devolucion"].required = True

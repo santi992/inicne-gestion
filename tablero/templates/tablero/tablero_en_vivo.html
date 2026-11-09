@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titulo %}Tablero en vivo{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Tablero en vivo</h1>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'tablero' %}">Ver tablero clásico</a>
+</div>
+
+{# Acá se "monta" React: todo lo que hay dentro de este div lo dibuja y actualiza la aplicación #}
+<div id="root">
+  <div class="text-muted">Cargando tablero…</div>
+</div>
+
+{# Este archivo lo genera Vite (npm run build) en tablero/static/tablero/react/ #}
+<script type="module" src="{% static 'tablero/react/tablero.js' %}"></script>
+{% endblock %}

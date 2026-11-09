@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block titulo %}Tablero{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Tablero de tareas</h1>
+  {# Solo el administrador ve el botón de crear (el Personal solo cambia el estado de las suyas) #}
+  {% if es_admin %}
+  <a class="btn btn-primary" href="{% url 'tareas:crear' %}">Nueva tarea</a>
+  {% endif %}
+</div>
+
+{# Tres tarjetas resumen. El borde usa los mismos colores que las etiquetas de cada tarea #}
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card" style="border-left: 6px solid {{ colores.vencida }};">
+      <div class="card-body py-2">
+        <div class="text-muted small">Vencidas</div>
+        <div class="fs-3 fw-bold">{{ n_vencidas }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card" style="border-left: 6px solid {{ colores.por_vencer }};">
+      <div class="card-body py-2">
+        <div class="text-muted small">Por vencer (próximos días)</div>
+        <div class="fs-3 fw-bold">{{ n_por_vencer }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card" style="border-left: 6px solid {{ colores.completada }};">
+      <div class="card-body py-2">
+        <div class="text-muted small">Completadas hoy</div>
+        <div class="fs-3 fw-bold">{{ n_completadas_hoy }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Filtros. Es un formulario GET: las elecciones quedan escritas en la dirección #}
+<form method="get" class="row g-2 align-items-center mb-3">
+  <div class="col-md-3">
+    <select name="vista" class="form-select">
+      <option value="hoy" {% if vista == 'hoy' %}selected{% endif %}>Hoy (y atrasadas)</option>
+      <option value="semana" {% if vista == 'semana' %}selected{% endif %}>Esta semana (y atrasadas)</option>
+      <option value="todas" {% if vista == 'todas' %}selected{% endif %}>Todas las abiertas</option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select name="area" class="form-select">
+      <option value="">Todas las áreas</option>
+      {% for valor, etiqueta in areas %}
+      <option value="{{ valor }}" {% if valor == area_sel %}selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    {% if persona %}
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="mias" value="1" id="mias" {% if solo_mias %}checked{% endif %}>
+      <label class="form-check-label" for="mias">Solo mis tareas</label>
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-md-3 d-grid">
+    <button class="btn btn-secondary" type="submit">Aplicar</button>
+  </div>
+</form>
+
+<div class="table-responsive bg-white border rounded">
+  <table class="table table-hover align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Tarea</th><th>Área</th><th>Responsable</th><th>Fecha límite</th>
+        <th>Prioridad</th><th>Estado</th><th>Alerta</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tareas %}
+      <tr>
+        <td>
+          <strong>{{ t.titulo }}</strong>
+          {% if t.proyecto %}<span class="badge text-bg-light border">{{ t.proyecto }}</span>{% endif %}
+          {% if t.descripcion %}<div class="text-muted small">{{ t.descripcion|truncatechars:80 }}</div>{% endif %}
+        </td>
+        <td>{{ t.get_area_display }}</td>
+        <td>
+          {# Resalto mis propias tareas dentro de la lista completa #}
+          {% if persona and t.responsable_id == persona.pk %}
+          <strong>{{ t.responsable }}</strong> <span class="badge text-bg-primary">Vos</span>
+          {% else %}{{ t.responsable }}{% endif %}
+        </td>
+        <td>{{ t.fecha_limite|date:"d/m/Y" }}</td>
+        <td>{{ t.get_prioridad_display }}</td>
+        <td>{{ t.get_estado_display }}</td>
+        <td>
+          {# colores_alerta es una tupla (fondo, texto): .0 y .1 son sus dos posiciones #}
+          <span class="badge" style="background: {{ t.colores_alerta.0 }}; color: {{ t.colores_alerta.1 }};">
+            {{ t.etiqueta_alerta }}
+          </span>
+        </td>
+        <td class="text-end text-nowrap">
+          {# Cambiar estado: el administrador o el responsable de la tarea #}
+          {% if es_admin or persona and t.responsable_id == persona.pk %}
+          <form method="post" action="{% url 'tareas:estado' t.pk %}" class="d-inline">
+            {% csrf_token %}
+            {# next: para volver al tablero con los mismos filtros #}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            {% if t.estado == 'PEND' %}
+            <button class="btn btn-sm btn-outline-primary" name="estado" value="CURSO">Iniciar</button>
+            {% endif %}
+            {% if t.estado != 'HECHA' %}
+            <button class="btn btn-sm btn-outline-success" name="estado" value="HECHA">Completar</button>
+            {% else %}
+            <button class="btn btn-sm btn-outline-secondary" name="estado" value="PEND">Reabrir</button>
+            {% endif %}
+          </form>
+          {% endif %}
+          {% if es_admin %}
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tareas:editar' t.pk %}">Editar</a>
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'tareas:eliminar' t.pk %}">Eliminar</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" class="text-center text-muted py-4">No hay tareas para mostrar con estos filtros.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
