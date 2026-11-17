@@ -1,0 +1,48 @@
+# "Blueprint" de Render: describe en un solo archivo qué hay que crear
+# (la base de datos y el sitio web) y cómo conectarlos.
+databases:
+  - name: inicne-db
+    plan: free
+    databaseName: inicne
+    user: inicne
+
+services:
+  - type: web
+    name: inicne-gestion
+    runtime: python
+    plan: free
+    # Se ejecuta en cada despliegue, en este orden y deteniéndose ante el primer error:
+    # 1. instala las librerías
+    # 2. junta los archivos estáticos (incluido el React compilado)
+    # 3. crea o actualiza las tablas de la base de datos
+    # 4. crea el administrador y (si se pidió) los datos de demostración
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate && python manage.py preparar_produccion
+    # gunicorn es el servidor que ejecuta Django en producción
+    startCommand: python -m gunicorn config.wsgi:application
+    envVars:
+      # Render completa solo la dirección de la base de datos creada arriba
+      - key: DATABASE_URL
+        fromDatabase:
+          name: inicne-db
+          property: connectionString
+      # Render genera una clave secreta aleatoria y la guarda
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: WEB_CONCURRENCY
+        value: "2"
+      # sync: false significa "preguntame el valor al crear el servicio":
+      # así las contraseñas nunca quedan escritas en el repositorio
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      # Poné 1 para cargar datos de demostración (solo si la base está vacía)
+      - key: CARGAR_DEMO
+        value: "1"
+      # Contraseña de los usuarios de demostración
+      - key: DEMO_PASSWORD
+        sync: false

@@ -14,12 +14,15 @@ from .forms import TareaForm
 from .models import Tarea
 from .permisos import puede_cambiar_estado
 
-# No hay una vista "lista de tareas" acá: el listado ES el tablero (app tablero).
-# Esta app solo tiene las acciones sobre una tarea.
+# no hay una vista "lista de tareas"
+# el listado ES el tablero (app tablero)
+# esta app solo tiene las acciones sobre una tarea
 
 
 class TareaCreateView(SoloAdministradorMixin, SuccessMessageMixin, CreateView):
-    """Crear tareas: solo el administrador (decisión del proyecto)."""
+    """
+    solo el administrador puede crear tareas
+    """
 
     model = Tarea
     form_class = TareaForm
@@ -47,41 +50,39 @@ class TareaDeleteView(SoloAdministradorMixin, SuccessMessageMixin, DeleteView):
 
 class CambiarEstadoView(LoginRequiredMixin, View):
     """
-    Cambia el estado de una tarea (Iniciar, Completar, Reabrir).
-    Lo puede hacer el administrador o la persona a quien está asignada la
-    tarea; el resto del personal solo la ve. Solo acepta POST porque
-    modifica datos: con un enlace común (GET) cualquier página externa
-    podría disparar el cambio sin que el usuario se entere.
+    cambia el estado de una tarea (Iniciar, Completar, Reabrir).
+    lo puede hacer el administrador o la persona a quien está asignada la tarea
+    solo acepta POST porque modifica datos
     """
 
     http_method_names = ["post"]
 
     def post(self, request, pk):
         tarea = get_object_or_404(Tarea, pk=pk)
-        # La regla de quién puede cambiar el estado vive en tareas/permisos.py,
-        # porque la API REST (día 5) necesita exactamente la misma regla
+        # la regla de quién puede cambiar el estado está en tareas/permisos.py,
         if not puede_cambiar_estado(request.user, tarea):
             # PermissionDenied muestra la página 403
             raise PermissionDenied
 
         nuevo_estado = request.POST.get("estado", "")
-        # Nunca confío en lo que manda el navegador: valido que sea un estado real
+        # valida que sea un estado real
         if nuevo_estado not in Tarea.Estado.values:
             messages.error(request, "Estado no válido.")
         else:
             tarea.estado = nuevo_estado
-            # save() del modelo completa o borra fecha_completada solo
+            # save() del modelo completa o borra fecha_completada
             tarea.save()
             messages.success(
                 request, f"«{tarea.titulo}»: {tarea.get_estado_display().lower()}."
             )
 
-        # "next" dice a qué página volver (la del tablero con sus filtros).
-        # Compruebo que sea una dirección de MI sitio: si no, alguien podría
-        # armar un formulario que redirija a una página maliciosa.
+        # "next" dice a qué página volver (tablero con sus filtros).
+        # compruebo que sea una dirección de MI sitio
         destino = request.POST.get("next", "")
         if not url_has_allowed_host_and_scheme(
-            destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+            destino,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
         ):
             destino = reverse("tablero")
         return redirect(destino)

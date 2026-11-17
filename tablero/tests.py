@@ -19,14 +19,23 @@ class TableroTests(TestCase):
         cls.luis = Persona.objects.create(usuario=u_luis, area="CAMPO")
 
     def crear(self, titulo, dias, responsable=None, area="PROD", **extra):
-        """Crea una tarea con fecha límite a "dias" días de hoy (negativo = pasado)."""
+        """
+        crea una tarea con fecha límite a "dias" días de hoy (negativo == pasado)
+        """
+
         return Tarea.objects.create(
-            titulo=titulo, area=area, responsable=responsable or self.ana,
-            fecha_limite=self.hoy + timedelta(days=dias), **extra
+            titulo=titulo,
+            area=area,
+            responsable=responsable or self.ana,
+            fecha_limite=self.hoy + timedelta(days=dias),
+            **extra
         )
 
     def titulos(self, **parametros):
-        """Títulos que muestra el tablero para esos filtros."""
+        """
+        títulos que muestra el tablero para esos filtros
+        """
+
         self.client.login(username="ana", password="clave123")
         respuesta = self.client.get(reverse("tablero"), parametros)
         return [t.titulo for t in respuesta.context["tareas"]]
@@ -54,7 +63,7 @@ class TableroTests(TestCase):
         self.assertNotIn("Lejana", titulos)
 
     def test_la_semana_llega_hasta_el_domingo(self):
-        # Calculo el domingo igual que la vista: weekday() es 0 el lunes, 6 el domingo
+        # weekday() es 0 el lunes, 6 el domingo
         domingo = (self.hoy + timedelta(days=6 - self.hoy.weekday())) - self.hoy
         self.crear("Vence el domingo", domingo.days)
         self.crear("Vence el lunes siguiente", domingo.days + 1)
@@ -77,7 +86,7 @@ class TableroTests(TestCase):
 
     def test_completada_ayer_ya_no_aparece(self):
         tarea = self.crear("Hecha ayer", 0, estado=Tarea.Estado.COMPLETADA)
-        # update() evita pasar por save(), que pondría la fecha de hoy
+        # update() actualiza sin pasar por save() para no guardar la fecha de hoy
         Tarea.objects.filter(pk=tarea.pk).update(
             fecha_completada=self.hoy - timedelta(days=1)
         )

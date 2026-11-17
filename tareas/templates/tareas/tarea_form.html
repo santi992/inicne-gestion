@@ -8,7 +8,7 @@
     <div class="card"><div class="card-body">
       <form method="post">
         {% csrf_token %}
-        {# Reutilizo la misma plantilla de campos que en equipamiento #}
+        {# reutilizo la misma plantilla de campos que en equipamiento #}
         {% include "_campos_formulario.html" %}
         <button class="btn btn-primary" type="submit">Guardar</button>
         <a class="btn btn-link" href="{% url 'tablero' %}">Cancelar</a>

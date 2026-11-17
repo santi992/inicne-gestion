@@ -10,23 +10,17 @@ VISTAS = ("hoy", "semana", "todas")
 
 def filtrar_tareas(parametros, persona):
     """
-    Devuelve las tareas que corresponde mostrar en el tablero, según los
-    filtros del pedido (?vista=...&area=...&mias=1), y los filtros que
-    realmente se aplicaron.
+    devuelve las tareas del tablero según los filtros del pedido
 
-    Antes esta lógica estaba dentro de la vista del tablero. La saco a una
-    función porque ahora la usan dos: la página con plantillas de Django y
-    la API REST que consume React. Así las dos muestran siempre lo mismo.
+    se usa en la página con plantillas de Django y la API REST que consume React
 
-    "parametros" es un QueryDict (request.GET o request.query_params) y
-    "persona" es la Persona del usuario, o None si no tiene ficha.
+    "parametros" es un QueryDict (request.GET o request.query_params)
+    "persona" es la Persona del usuario, o None si no tiene ficha
 
-    Las vistas de tiempo:
+    vistas de tiempo:
     - hoy:    lo atrasado + lo que vence hoy
-    - semana: lo atrasado + lo que vence hasta el domingo (la predeterminada)
+    - semana: lo atrasado + lo que vence hasta el domingo
     - todas:  todo lo abierto, sin límite de fecha
-    En las tres, las tareas completadas HOY siguen visibles hasta el final
-    del día (regla de Tarea.objects.visibles_en_tablero()).
     """
     hoy = timezone.localdate()
     # weekday() da 0 para el lunes y 6 para el domingo:
@@ -40,8 +34,7 @@ def filtrar_tareas(parametros, persona):
     tareas = Tarea.objects.visibles_en_tablero().select_related(
         "responsable__usuario", "proyecto"
     )
-    # "lte" = "less than or equal": fecha límite menor o igual a...
-    # Como las atrasadas tienen fecha anterior a hoy, entran solas.
+    # "lte" == "less than or equal" fecha límite menor o igual a...
     if vista == "hoy":
         tareas = tareas.filter(fecha_limite__lte=hoy)
     elif vista == "semana":
@@ -61,7 +54,11 @@ def filtrar_tareas(parametros, persona):
 
 
 def contadores():
-    """Los tres números de las tarjetas. Miran a todo el instituto, sin filtros."""
+    """
+    los tres números de las tarjetas
+    miran a todo el instituto, sin filtros
+    """
+
     hoy = timezone.localdate()
     return {
         "vencidas": Tarea.objects.vencidas().count(),

@@ -1,30 +1,39 @@
+"""
+configuración del proyecto INICNE.
+
+esta configuración sirve para DOS entornos con el mismo código:
+- en local (desarrollo): DEBUG=True en el archivo .env
+- en Render (producción): DEBUG=False y las claves vienen de variables de entorno
+
+los secretos (SECRET_KEY, contraseñas) se leen del entorno con python-decouple
+no se suben a GitHub
+"""
+
 from pathlib import Path
 
-# desde decouple importo:
-# "config" para leer variables del archivo .env
-# "Csv" para trabajar con texto separado por comas y listas
-from decouple import config, Csv
-
-# importo dj_database_url para configurar la base de datos con una sola URL
 import dj_database_url
+from decouple import Csv, config
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# --- Seguridad básica -------------------------------------------------------
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
-
-# la clave secreta se encuentra en el archivo .env por seguridad
+# la clave secreta firma las sesiones y los tokens
+# se lee del entorno y no se escribe en el código
 SECRET_KEY = config("SECRET_KEY")
 
-# debug por defecto es False por si olvido configurarlo en Render
+# DEBUG por defecto es False para que el sitio sea seguro
 DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="127.0.0.1,localhost", cast=Csv())
 
+# nombre del sitio que me da Render para producción
+RENDER_EXTERNAL_HOSTNAME = config("RENDER_EXTERNAL_HOSTNAME", default="")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    CSRF_TRUSTED_ORIGINS = [f"https://{RENDER_EXTERNAL_HOSTNAME}"]
 
-# Application definition
+# --- Aplicaciones -----------------------------------------------------------
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -33,9 +42,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # Librería para construir la API que consumirá React
+    # librería para construir la API que consume React
     "rest_framework",
-    # Mis apps, una por cada área del sistema
+    # una app propia por cada área del sistema
     "personal",
     "equipamiento",
     "tareas",
@@ -43,9 +52,12 @@ INSTALLED_APPS = [
     "tablero",
 ]
 
-
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise entrega los archivos estáticos (CSS, JS de React) desde la
+    # propia aplicación, sin necesitar un servidor aparte. Tiene que ir
+    # justo después de SecurityMiddleware.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -59,6 +71,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+        # carpeta templates/ de la raíz: base.html, login, página 403, etc.
         "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -73,63 +86,78 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+# --- Base de datos ----------------------------------------------------------
 
-# Database
-# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
-
-# cambia entre PostgreSQL (Render) y SQLite local según el caso
+# Si existe la variable DATABASE_URL (en Render) usa PostgreSQL; si no, usa
+# SQLite local. Así el mismo código funciona en mi PC y en producción.
+# conn_max_age mantiene la conexión abierta unos minutos en lugar de abrir
+# una nueva en cada pedido, que es más lento.
 DATABASES = {
-    "default": dj_database_url.config(default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+    )
 }
-
-
-# Password validation
-# https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
     },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# --- Idioma y hora ----------------------------------------------------------
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.1/topics/i18n/
-
-# utilizo Argentina como zona horaria
 LANGUAGE_CODE = "es-ar"
-
+# Corrientes usa la zona horaria de Córdoba
 TIME_ZONE = "America/Argentina/Cordoba"
-
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.1/howto/static-files/
+# --- Archivos estáticos -----------------------------------------------------
 
 STATIC_URL = "static/"
+# carpeta donde "collectstatic" junta todos los archivos estáticos del
+# proyecto para entregarlos. No se sube a GitHub: se genera en cada despliegue.
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
-    "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
-    },
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+if not DEBUG:
+    # En producción, WhiteNoise comprime los archivos y les agrega un código
+    # en el nombre (tablero.3f9a2b.js). Así, cuando cambia React, el navegador
+    # descarga la versión nueva en lugar de usar una vieja guardada.
+    STORAGES["staticfiles"][
+        "BACKEND"
+    ] = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-LOGIN_URL = "login"  # a dónde mandar a quien no inició sesión
-LOGIN_REDIRECT_URL = "inicio"  # a dónde ir después de ingresar
-LOGOUT_REDIRECT_URL = "inicio"  # a dónde ir después de salir
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- Login ------------------------------------------------------------------
+
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "inicio"
+LOGOUT_REDIRECT_URL = "inicio"
+
+# --- Seguridad en producción ------------------------------------------------
+# solo se activa con DEBUG=False: en local trabajo con http y no con https.
+if not DEBUG:
+    # Render recibe el pedido por HTTPS y se lo pasa a mi app por HTTP.
+    # Este encabezado le avisa a Django que el pedido original era seguro.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    # Redirige todo pedido http:// a https://
+    SECURE_SSL_REDIRECT = True
+    # Las cookies de sesión y CSRF solo viajan por HTTPS
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Le pide al navegador que use siempre HTTPS con este sitio.
+    # Empiezo con una hora: si algo saliera mal, el efecto dura poco.
+    # Se puede subir a un año.
+    SECURE_HSTS_SECONDS = 3600
+
+    # NO activo CSRF_COOKIE_HTTPONLY. React necesita leer la cookie del
+    # token CSRF con JavaScript para poder hacer POST a la API.

@@ -11,7 +11,10 @@ from .models import Tarea
 
 
 class TareasBase(TestCase):
-    """Datos de partida compartidos: un administrador y dos personas del personal."""
+    """
+    datos de partida
+    un administrador y dos personas del personal
+    """
 
     @classmethod
     def setUpTestData(cls):
@@ -27,19 +30,29 @@ class TareasBase(TestCase):
 
         # Una tarea de Ana y otra de Luis, las dos con fecha límite mañana
         cls.tarea_ana = Tarea.objects.create(
-            titulo="Alimentar estanques", area="PROD",
-            responsable=cls.ana, fecha_limite=cls.hoy + timedelta(days=1),
+            titulo="Alimentar estanques",
+            area="PROD",
+            responsable=cls.ana,
+            fecha_limite=cls.hoy + timedelta(days=1),
         )
         cls.tarea_luis = Tarea.objects.create(
-            titulo="Visita a productor", area="CAMPO",
-            responsable=cls.luis, fecha_limite=cls.hoy + timedelta(days=1),
+            titulo="Visita a productor",
+            area="CAMPO",
+            responsable=cls.luis,
+            fecha_limite=cls.hoy + timedelta(days=1),
         )
 
     def datos_tarea(self, **cambios):
-        """Datos válidos para el formulario de tarea; cada prueba cambia lo que necesita."""
+        """
+        datos válidos para el formulario de tarea
+        cada prueba cambia lo que necesita
+        """
         datos = {
-            "titulo": "Revisar bombas", "descripcion": "", "proyecto": "",
-            "area": "SOP", "responsable": self.ana.pk,
+            "titulo": "Revisar bombas",
+            "descripcion": "",
+            "proyecto": "",
+            "area": "SOP",
+            "responsable": self.ana.pk,
             "fecha_limite": (self.hoy + timedelta(days=3)).isoformat(),
             "prioridad": "MEDIA",
         }
@@ -50,9 +63,7 @@ class TareasBase(TestCase):
 class PermisosCrearTareaTests(TareasBase):
     def test_personal_no_puede_crear_tareas(self):
         self.client.login(username="ana", password="clave123")
-        # Ni abriendo el formulario...
         self.assertEqual(self.client.get(reverse("tareas:crear")).status_code, 403)
-        # ...ni enviándolo a mano
         respuesta = self.client.post(reverse("tareas:crear"), self.datos_tarea())
         self.assertEqual(respuesta.status_code, 403)
         self.assertFalse(Tarea.objects.filter(titulo="Revisar bombas").exists())
@@ -62,7 +73,7 @@ class PermisosCrearTareaTests(TareasBase):
         respuesta = self.client.post(reverse("tareas:crear"), self.datos_tarea())
         self.assertEqual(respuesta.status_code, 302)
         tarea = Tarea.objects.get(titulo="Revisar bombas")
-        # Una tarea nueva siempre arranca pendiente
+        # una tarea nueva siempre arranca pendiente
         self.assertEqual(tarea.estado, Tarea.Estado.PENDIENTE)
 
     def test_no_se_crea_una_tarea_con_fecha_pasada(self):
@@ -77,10 +88,16 @@ class PermisosCrearTareaTests(TareasBase):
     def test_personal_no_puede_editar_ni_eliminar(self):
         self.client.login(username="ana", password="clave123")
         self.assertEqual(
-            self.client.get(reverse("tareas:editar", args=[self.tarea_ana.pk])).status_code, 403
+            self.client.get(
+                reverse("tareas:editar", args=[self.tarea_ana.pk])
+            ).status_code,
+            403,
         )
         self.assertEqual(
-            self.client.post(reverse("tareas:eliminar", args=[self.tarea_ana.pk])).status_code, 403
+            self.client.post(
+                reverse("tareas:eliminar", args=[self.tarea_ana.pk])
+            ).status_code,
+            403,
         )
         self.assertTrue(Tarea.objects.filter(pk=self.tarea_ana.pk).exists())
 
@@ -101,7 +118,7 @@ class CambiarEstadoTests(TareasBase):
         self.cambiar(self.tarea_ana, "HECHA")
         self.tarea_ana.refresh_from_db()
         self.assertEqual(self.tarea_ana.estado, "HECHA")
-        # El save() del modelo anotó la fecha de finalización
+        # save() del modelo guarda la fecha de finalización
         self.assertEqual(self.tarea_ana.fecha_completada, self.hoy)
 
     def test_otra_persona_no_puede_cambiar_una_tarea_ajena(self):
@@ -136,9 +153,11 @@ class CambiarEstadoTests(TareasBase):
         self.assertEqual(respuesta.status_code, 405)
 
     def test_next_externo_se_ignora(self):
-        # Un sitio malicioso podría pedir que después del cambio se redirija a él
+        # un sitio malicioso podría pedir que después del cambio se redirija a él
         self.client.login(username="ana", password="clave123")
-        respuesta = self.cambiar(self.tarea_ana, "CURSO", next="https://sitio-malo.com/")
+        respuesta = self.cambiar(
+            self.tarea_ana, "CURSO", next="https://sitio-malo.com/"
+        )
         self.assertRedirects(respuesta, reverse("tablero"))
 
     def test_next_propio_se_respeta(self):

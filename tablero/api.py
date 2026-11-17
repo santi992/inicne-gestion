@@ -18,14 +18,14 @@ from .serializers import TareaSerializer
 
 class ApiBase(APIView):
     """
-    Configuración común de las dos vistas de la API. La pongo en cada vista
-    en lugar de en settings.py para no tocar la configuración del proyecto.
+    configuración común de las dos vistas de la API
+    va en cada vista en lugar de en settings.py para no tocar la configuración del proyecto
 
-    - SessionAuthentication: la API usa la MISMA sesión del login de Django.
-      React corre en el mismo sitio, así que no hacen falta tokens aparte.
-      Esta autenticación exige además el token CSRF en los POST.
-    - IsAuthenticated: sin sesión iniciada, no se entrega ningún dato.
-    - JSONRenderer: la API solo responde JSON.
+    - SessionAuthentication: la API usa la MISMA sesión del login de Django
+      React corre en el mismo sitio, así que no hacen falta tokens aparte
+      Esta autenticación exige además el token CSRF en los POST
+    - IsAuthenticated: sin sesión iniciada no se entrega ningún dato
+    - JSONRenderer: la API solo responde JSON
     """
 
     authentication_classes = [SessionAuthentication]
@@ -37,9 +37,8 @@ class TableroAPIView(ApiBase):
     """
     GET /api/tablero/?vista=semana&area=PROD&mias=1
 
-    Devuelve todo lo que React necesita para dibujar el tablero en una sola
-    respuesta: quién es el usuario, los contadores y las tareas. Una sola
-    consulta de red por actualización, en lugar de tres.
+    devuelve lo que React necesita para dibujar el tablero en una sola respuesta
+    quién es el usuario, los contadores y las tareas
     """
 
     def get(self, request):
@@ -47,31 +46,33 @@ class TableroAPIView(ApiBase):
         # query_params es lo mismo que request.GET, pero con el nombre de DRF
         tareas, filtros = filtrar_tareas(request.query_params, persona)
 
-        return Response({
-            "usuario": {
-                "nombre": request.user.get_full_name() or request.user.username,
-                "es_admin": es_administrador(request.user),
-                "persona_id": persona.pk if persona else None,
-            },
-            "filtros": filtros,
-            "areas": [
-                {"valor": valor, "etiqueta": etiqueta}
-                for valor, etiqueta in AreaTrabajo.choices
-            ],
-            "contadores": contadores(),
-            # many=True: serializa una lista de tareas, no una sola
-            "tareas": TareaSerializer(tareas, many=True, context={"request": request}).data,
-            "actualizado": timezone.localtime().isoformat(),
-        })
+        return Response(
+            {
+                "usuario": {
+                    "nombre": request.user.get_full_name() or request.user.username,
+                    "es_admin": es_administrador(request.user),
+                    "persona_id": persona.pk if persona else None,
+                },
+                "filtros": filtros,
+                "areas": [
+                    {"valor": valor, "etiqueta": etiqueta}
+                    for valor, etiqueta in AreaTrabajo.choices
+                ],
+                "contadores": contadores(),
+                # many=True: serializa una lista de tareas, no una sola
+                "tareas": TareaSerializer(
+                    tareas, many=True, context={"request": request}
+                ).data,
+                "actualizado": timezone.localtime().isoformat(),
+            }
+        )
 
 
 class CambiarEstadoAPIView(ApiBase):
     """
     POST /api/tareas/<id>/estado/   con cuerpo {"estado": "HECHA"}
 
-    Aplica las mismas reglas que la vista normal: solo el administrador o
-    el responsable de la tarea pueden cambiarla, y el estado debe ser uno
-    de los valores reales.
+    solo el administrador o el responsable de la tarea pueden cambiarla
     """
 
     def post(self, request, pk):
@@ -84,13 +85,13 @@ class CambiarEstadoAPIView(ApiBase):
             )
 
         nuevo_estado = request.data.get("estado", "")
-        # Nunca confío en lo que manda el navegador: valido contra la lista real
+        # valida contra la lista real
         if nuevo_estado not in Tarea.Estado.values:
             return Response(
                 {"detalle": "Estado no válido."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         tarea.estado = nuevo_estado
-        # El save() del modelo completa o borra fecha_completada solo
+        # fecha_completada se actualiza al guardar
         tarea.save()
         return Response(TareaSerializer(tarea, context={"request": request}).data)

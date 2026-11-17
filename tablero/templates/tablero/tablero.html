@@ -4,13 +4,13 @@
 {% block contenido %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Tablero de tareas</h1>
-  {# Solo el administrador ve el botón de crear (el Personal solo cambia el estado de las suyas) #}
+  {# solo el administrador ve el botón de crear tarea #}
   {% if es_admin %}
   <a class="btn btn-primary" href="{% url 'tareas:crear' %}">Nueva tarea</a>
   {% endif %}
 </div>
 
-{# Tres tarjetas resumen. El borde usa los mismos colores que las etiquetas de cada tarea #}
+{# tres tarjetas resumen. El borde usa los mismos colores que las etiquetas de cada tarea #}
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <div class="card" style="border-left: 6px solid {{ colores.vencida }};">
@@ -86,7 +86,7 @@
         </td>
         <td>{{ t.get_area_display }}</td>
         <td>
-          {# Resalto mis propias tareas dentro de la lista completa #}
+          {# Resalta las tareas del usuario dentro de la lista completa #}
           {% if persona and t.responsable_id == persona.pk %}
           <strong>{{ t.responsable }}</strong> <span class="badge text-bg-primary">Vos</span>
           {% else %}{{ t.responsable }}{% endif %}
@@ -101,7 +101,7 @@
           </span>
         </td>
         <td class="text-end text-nowrap">
-          {# Cambiar estado: el administrador o el responsable de la tarea #}
+          {# cambiar estado: el administrador o el responsable de la tarea #}
           {% if es_admin or persona and t.responsable_id == persona.pk %}
           <form method="post" action="{% url 'tareas:estado' t.pk %}" class="d-inline">
             {% csrf_token %}

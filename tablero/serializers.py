@@ -20,7 +20,9 @@ class TareaSerializer(serializers.ModelSerializer):
     responsable_nombre = serializers.CharField(source="responsable", read_only=True)
     # source="get_area_display" llama a ese método del modelo y devuelve el texto
     area_display = serializers.CharField(source="get_area_display", read_only=True)
-    prioridad_display = serializers.CharField(source="get_prioridad_display", read_only=True)
+    prioridad_display = serializers.CharField(
+        source="get_prioridad_display", read_only=True
+    )
     estado_display = serializers.CharField(source="get_estado_display", read_only=True)
     # Propiedades que definí en el modelo Tarea (día 2 y día 3)
     nivel_alerta = serializers.ReadOnlyField()
@@ -34,12 +36,25 @@ class TareaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tarea
         fields = [
-            "id", "titulo", "descripcion", "proyecto",
-            "area", "area_display", "responsable_id", "responsable_nombre",
-            "fecha_limite", "prioridad", "prioridad_display",
-            "estado", "estado_display",
-            "nivel_alerta", "etiqueta_alerta", "color_fondo", "color_texto",
-            "es_mia", "puede_cambiar_estado",
+            "id",
+            "titulo",
+            "descripcion",
+            "proyecto",
+            "area",
+            "area_display",
+            "responsable_id",
+            "responsable_nombre",
+            "fecha_limite",
+            "prioridad",
+            "prioridad_display",
+            "estado",
+            "estado_display",
+            "nivel_alerta",
+            "etiqueta_alerta",
+            "color_fondo",
+            "color_texto",
+            "es_mia",
+            "puede_cambiar_estado",
         ]
 
     def get_color_fondo(self, tarea):
@@ -49,12 +64,10 @@ class TareaSerializer(serializers.ModelSerializer):
         return tarea.colores_alerta[1]
 
     def get_es_mia(self, tarea):
-        # El contexto trae el pedido (request), y de ahí saco al usuario
+        # el contexto trae el pedido (request) obtiene el usuario
         persona = obtener_persona(self.context["request"].user)
         return persona is not None and tarea.responsable_id == persona.pk
 
     def get_puede_cambiar_estado(self, tarea):
-        # Le digo a React si mostrar los botones. Pero la decisión real la
-        # vuelve a tomar el servidor al recibir el POST: ocultar un botón
-        # no es seguridad, es comodidad.
+        # le dice a React si mostrar los botones (por seguridad)
         return puede_cambiar_estado(self.context["request"].user, tarea)

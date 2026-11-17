@@ -78,7 +78,7 @@ class TareaQuerySet(models.QuerySet):
 
     def visibles_en_tablero(self):
         """
-        Las tareas que el tablero debe mostrar:
+        las tareas que el tablero debe mostrar:
         todas las que siguen abiertas, más las que se completaron en el día
         """
         hoy = timezone.localdate()
